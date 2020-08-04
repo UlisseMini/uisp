@@ -64,7 +64,7 @@ end
 
 -- is c an ident ending character?
 -- (EOF, whitespace, close paren, etc)
-function is.ident_ending(c)
+function is.lit_ending(c)
 	return is.ws(c) or is.eof(c) or ({
 		['('] = true,
 		[')'] = true,
@@ -74,9 +74,13 @@ end
 -- lex an ident, buf contains the first character
 -- of the ident, for example 'a' in the ident 'apple'.
 function lexer:lex_ident(buf)
+	-- record the start of this token.
+	-- this is our current pos - 1 (because we get passed 1 char in buf)
+	local start = self.pos - 1
+
 	while true do
 		local c = self:next()
-		if is.ident_ending(c) then
+		if is.lit_ending(c) then
 			-- don't /consume/ the ending character
 			self:backup()
 			break
@@ -86,9 +90,41 @@ function lexer:lex_ident(buf)
 	end
 
 	return {
-		pos = self.pos,
+		pos = start,
 		typ = lexer.tt.ident,
 		v = buf,
+	}
+end
+
+-- buf contains the first character of the digit.
+function lexer:lex_number(buf)
+	-- record the start of this token.
+	-- this is our current pos - 1 (because we get passed 1 char in buf)
+	local start = self.pos - 1
+
+	while true do
+		local c = self:next()
+		if is.eof(c) then break end
+
+		if is.lit_ending(c) then
+			-- don't /consume/ the ending character
+			self:backup()
+			break
+		end
+
+		if not is.digit(c) then
+			-- TODO: Better errors
+			error(("invalid digit with ending %q (%q)"):format(c, buf .. c))
+		end
+
+		buf = buf .. c
+	end
+
+	return {
+		pos = start,
+		typ = lexer.tt.num,
+		-- This should never fail. If it does it is a bug in the lexer.
+		v = assert(tonumber(buf)),
 	}
 end
 
@@ -107,34 +143,20 @@ function lexer:__call()
 
 	while true do
 		local c = self:next()
-		if is.eof(c) then break end -- EOF
+		if is.eof(c) then break end
 
 		local t = cases[c]
 		if t ~= nil then
-			return {pos = self.pos, typ = t}
+			return {pos = self.pos - 1, typ = t, v = c}
 		end
 
 		if is.digit(c) then
-			-- digit, TODO
-
+			-- number
+			return self:lex_number(c)
 		elseif not is.ws(c) then
 			-- ident
 			return self:lex_ident(c)
 		end
-	end
-end
-
-
-----------------------------
---         Tests          --
-----------------------------
-
-local l = lexer.new("(a (b) c)")
-for token in l do
-	if token.typ == lexer.tt.ident then
-		print(token.v)
-	else
-		print(token.typ)
 	end
 end
 
