@@ -16,6 +16,35 @@ function lexer:cur()
 	return self.s:sub(self.pos, self.pos)
 end
 
+-- get the string for line n, excluding newline
+-- (does not modify lexer state)
+function lexer:get_line(n)
+	local l = 1
+	local buf = ''
+	for c in self.s:gmatch('.*') do
+		if l == n then
+			buf = buf .. c
+		end
+
+		if c == '\n' then
+			l = l + 1
+			if l - 1 == n then break end
+		end
+	end
+
+	return buf
+end
+
+-- a nice lexer error.
+function lexer:errorf(s, ...)
+	local buf = "line " .. tonumber(self.line) .. "," .. '\n'
+	buf = buf .. self:get_line(self.line) .. '\n'
+	buf = buf .. '^ '
+	buf = buf .. s:format(...)
+
+	error(buf)
+end
+
 -- return the next character
 function lexer:next()
 	local c = self:cur()
@@ -28,7 +57,9 @@ end
 function lexer:backup()
 	if self:cur() == '\n' then self.line = self.line - 1 end
 	self.pos = self.pos - 1
-	if self.pos < 1 then error(("self.pos (%d) must be greater then zero"):format(self.pos)) end
+	if self.pos < 1 then
+		self:errorf("[lexer bug] self.pos (%d) must be greater then zero", self.pos)
+	end
 end
 
 function lexer:emit()
@@ -128,6 +159,30 @@ function lexer:lex_number(buf)
 	}
 end
 
+function lexer:lex_string()
+	local buf = ''
+	local start = self.pos
+	while true do
+		local c = self:next()
+		if is.eof(c) then
+			self:errorf('no ending doublequote (")')
+		end
+
+		if c == '"' then
+			break
+		end
+
+		buf = buf .. c
+	end
+
+	return {
+		pos = start - 1,
+		typ = lexer.tt.str,
+		-- This should never fail. If it does it is a bug in the lexer.
+		v = buf,
+	}
+end
+
 -- scan until we find a token, then return it.
 -- this is usually called in a loop in client code like this
 -- for token in lexer do ... end
@@ -153,6 +208,8 @@ function lexer:__call()
 		if is.digit(c) then
 			-- number
 			return self:lex_number(c)
+		elseif c == '"' then
+			return self:lex_string()
 		elseif not is.ws(c) then
 			-- ident
 			return self:lex_ident(c)

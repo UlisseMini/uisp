@@ -28,13 +28,13 @@ local tests = {
 		{pos = 1, typ = lexer.tt.cp, v = ')'}
 	}},
 
-	{'lex string doublequotes', '"foo"', {
+	{'lex string', '"foo"', {
 		{pos = 1, typ = lexer.tt.str, v = 'foo'}
 	}},
 
-	{'lex string singlequotes', "'foo'", {
-		{pos = 1, typ = lexer.tt.str, v = 'foo'}
-	}},
+	{'lex string fail', '"foo', fail = true},
+	{'lex number fail', '13c', fail = true},
+	{'lex hex fail', '0x1', fail = true}, -- hex not supported, yet
 
 	{'lex list', '(a b c)', {
 		{pos = 1, typ = lexer.tt.op, v = '('},
@@ -60,12 +60,25 @@ for _, test in pairs(tests) do
 
 	print(name .. ': ' .. input)
 
-	local got = {}
-	for token in lexer.new(input) do
-		table.insert(got, token)
-	end
+	if test.fail then
+		local ok, err = pcall(function()
+			local got = {}
+			for token in lexer.new(input) do
+				table.insert(got, token)
+			end
+		end)
 
-	assert(inspect(got) == inspect(want),
-		("--- WANT\n%s\n\n--- GOT\n%s\n"):format(inspect(want), inspect(got)))
+		if ok then
+			error(("%s should have failed, but did not"):format(name))
+		end
+	else
+		local got = {}
+		for token in lexer.new(input) do
+			table.insert(got, token)
+		end
+
+		assert(inspect(got) == inspect(want),
+			("--- WANT\n%s\n\n--- GOT\n%s\n"):format(inspect(want), inspect(got)))
+	end
 end
 
