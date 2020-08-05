@@ -20,6 +20,14 @@ local tests = {
 		{pos = 1, typ = lexer.tt.num, v = 5}
 	}},
 
+	{'lex multi digit', '55', {
+		{pos = 1, typ = lexer.tt.num, v = 55}
+	}},
+
+	{'lex negative', '-5', {
+		{pos = 1, typ = lexer.tt.num, v = -5}
+	}},
+
 	{'lex oparen', '(', {
 		{pos = 1, typ = lexer.tt.op, v = '('}
 	}},

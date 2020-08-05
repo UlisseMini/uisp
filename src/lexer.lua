@@ -205,7 +205,7 @@ function lexer:__call()
 			return {pos = self.pos - 1, typ = t, v = c}
 		end
 
-		if is.digit(c) then
+		if is.digit(c) or c == '-' then
 			-- number
 			return self:lex_number(c)
 		elseif c == '"' then
