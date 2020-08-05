@@ -40,6 +40,14 @@ local tests = {
 		{pos = 1, typ = lexer.tt.str, v = 'foo'}
 	}},
 
+	{'lex true', '#t', {
+		{pos = 1, typ = lexer.tt.bool, v = true}
+	}},
+
+	{'lex false', '#f', {
+		{pos = 1, typ = lexer.tt.bool, v = false}
+	}},
+
 	{'lex string fail', '"foo', fail = true},
 	{'lex number fail', '13c', fail = true},
 	{'lex hex fail', '0x1', fail = true}, -- hex not supported, yet

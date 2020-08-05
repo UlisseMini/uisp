@@ -16,6 +16,11 @@ function lexer:cur()
 	return self.s:sub(self.pos, self.pos)
 end
 
+-- return the next character without incrementing pos
+function lexer:peek()
+	return self.s:sub(self.pos, self.pos)
+end
+
 -- get the string for line n, excluding newline
 -- (does not modify lexer state)
 function lexer:get_line(n)
@@ -73,6 +78,7 @@ lexer.tt = {
 	str   = 3, -- "foo", "bar\nbaz"
 	ident = 4, -- a, b, abc
 	sym   = 5, -- 'a, 'b, 'abc
+	bool  = 6, -- #t/#f
 }
 
 -- helper functions
@@ -178,9 +184,28 @@ function lexer:lex_string()
 	return {
 		pos = start - 1,
 		typ = lexer.tt.str,
-		-- This should never fail. If it does it is a bug in the lexer.
 		v = buf,
 	}
+end
+
+function lexer:lex_bool()
+	local c = self:next()
+	local b
+	if     c == 't' then b = true
+	elseif c == 'f' then b = false
+	else                 self:errorf('expected #t/#f, got #%s', c)
+	end
+
+	local p = self:peek()
+	if is.ws(p) or is.eof(p) then
+		return {
+			pos = self.pos - 2, -- minus 2 because we consumed #f/#t (2 chars)
+			typ = lexer.tt.bool,
+			v = b,
+		}
+	else
+		self:errorf("expected whitespace or eof, got %q", p)
+	end
 end
 
 -- scan until we find a token, then return it.
@@ -208,6 +233,8 @@ function lexer:__call()
 		if is.digit(c) or c == '-' then
 			-- number
 			return self:lex_number(c)
+		elseif c == '#' then
+			return self:lex_bool()
 		elseif c == '"' then
 			return self:lex_string()
 		elseif not is.ws(c) then
